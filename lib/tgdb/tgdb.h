@@ -408,6 +408,9 @@
     void tgdb_request_disassemble_func(struct tgdb *tgdb,
             enum disassemble_func_type type);
 
+    void tgdb_request_until_line(struct tgdb *tgdb,
+            const char *file, int line, uint64_t addr);
+
 /*@}*/
 /* }}}*/
 

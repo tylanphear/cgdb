@@ -215,7 +215,12 @@
         /**
          * Request GDB to disassemble a function.
          */
-        TGDB_REQUEST_DISASSEMBLE_FUNC
+        TGDB_REQUEST_DISASSEMBLE_FUNC,
+
+        /**
+         * Request GDB to skip to the given line.
+         */
+        TGDB_REQUEST_UNTIL_LINE
     };
 
     struct tgdb_request {
@@ -268,6 +273,12 @@
                 int source;
                 int raw;
             } disassemble_func;
+
+            struct {
+              const char *file;
+              int line;
+              uint64_t addr;
+            } until_line;
         } choice;
     };
 

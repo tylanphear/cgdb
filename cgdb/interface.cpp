@@ -1089,6 +1089,41 @@ static int status_bar_input(struct sviewer *sview, int key)
     return -1;
 }
 
+static int
+get_file_location(struct sviewer *sview,
+        int *line, char **file, uint64_t *addr)
+{
+    int l_line;
+    char *l_file = NULL;
+    uint64_t l_addr = 0;
+
+    if (!sview || !sview->cur || !sview->cur->path)
+        return -1;
+
+    l_line = sview->cur->sel_line;
+
+    if (sview->cur->path[0] == '*')
+    {
+        l_addr = sview->cur->file_buf.addrs[l_line];
+        if (!l_addr)
+            return -1;
+    }
+    else
+    {
+        /* Get filename (strip path off -- GDB is dumb) */
+        l_file = strrchr(sview->cur->path, '/') + 1;
+        if (l_file == (char *)NULL + 1)
+            l_file = sview->cur->path;
+    }
+
+    /* l_line is 0-indexed, but the actual file is 1-indexed */
+    *line = l_line + 1;
+    *file = l_file;
+    *addr = l_addr;
+
+    return 0;
+}
+
 /**
  * toggle a breakpoint
  * 
@@ -1105,34 +1140,18 @@ static int
 toggle_breakpoint(struct sviewer *sview, enum tgdb_breakpoint_action t)
 {
     int line;
-    uint64_t addr = 0;
-    char *path = NULL;
+    uint64_t addr;
+    char *file;
 
-    if (!sview || !sview->cur || !sview->cur->path)
-        return -1;
-
-    line = sview->cur->sel_line;
-
-    if (sview->cur->path[0] == '*')
-    {
-        addr = sview->cur->file_buf.addrs[line];
-        if (!addr)
-            return -1;
-    }
-    else
-    {
-
-        /* Get filename (strip path off -- GDB is dumb) */
-        path = strrchr(sview->cur->path, '/') + 1;
-        if (path == (char *)NULL + 1)
-            path = sview->cur->path;
+    if (get_file_location(sview, &line, &file, &addr) == -1) {
+      return -1;
     }
 
     /* delete an existing breakpoint */
     if (sview->cur->lflags[line].breakpt)
         t = TGDB_BREAKPOINT_DELETE;
 
-    tgdb_request_modify_breakpoint(tgdb, path, line + 1, addr, t);
+    tgdb_request_modify_breakpoint(tgdb, file, line, addr, t);
     return 0;
 }
 
@@ -1400,6 +1419,15 @@ static int cgdb_input(int key, int *last_key)
                                 !regex_direction_last, regex_icase);
             if_draw();
             break;
+        case 'u': {
+            int line;
+            uint64_t addr = 0;
+            char *file = NULL;
+            get_file_location(src_viewer, &line, &file, &addr);
+
+            tgdb_request_until_line(tgdb, file, line, addr);
+            return 0;
+        }
         case CGDB_KEY_CTRL_T:
             if (tgdb_tty_new(tgdb) == -1) {
                 /* Error */
